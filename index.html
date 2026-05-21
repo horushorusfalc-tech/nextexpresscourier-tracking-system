@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="NextExpressCourier - Precision Global Logistics & Tracking. Safe, reliable, and transparent shipping solutions across the globe.">
+    <link rel="icon" type="image/png" href="/logo.png">
+    <title>NextExpressCourier | Precision Logistics Reimagined</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        body { 
+          font-family: 'Inter', sans-serif;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          overflow-x: hidden;
+          background-color: #fafafa;
+        }
+        ::selection {
+          background: #0f172a;
+          color: white;
+        }
+        /* Premium Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #f8fafc; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        * { transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.1s ease; }
+        
+        html, body { height: 100%; overscroll-behavior-y: none; }
+
+        /* Dark Mode Map for Situation Room */
+        .leaflet-container {
+            background: #0f172a !important;
+            font-family: 'Inter', sans-serif !important;
+        }
+        .pulse-icon {
+            position: relative;
+        }
+        .leaflet-popup-content-wrapper {
+            background: #0f172a !important;
+            color: white !important;
+            border-radius: 12px !important;
+            border: 1px solid rgba(255,255,255,0.1);
+            font-weight: 900;
+        }
+        .leaflet-popup-tip {
+            background: #0f172a !important;
+        }
+        
+        /* Force Input Visibility */
+        input, textarea, select {
+            color: #0f172a !important;
+        }
+        input::placeholder, textarea::placeholder {
+            color: #94a3b8 !important;
+        }
+    </style>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body class="selection:bg-slate-900 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

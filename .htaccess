@@ -1,0 +1,222 @@
+# ============================================
+# NextExpress Courier Tracking System
+# Production .htaccess for Hostinger Shared Hosting
+# ============================================
+
+# ============================================
+# 1. SPA ROUTING RULES (HashRouter Compatible)
+# ============================================
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  # Don't rewrite if the request is for an actual file
+  RewriteCond %{REQUEST_FILENAME} !-f
+  # Don't rewrite if the request is for an actual directory
+  RewriteCond %{REQUEST_FILENAME} !-d
+  # Don't rewrite if the request is for index.html
+  RewriteCond %{REQUEST_URI} !^/index\.html$
+  
+  # Rewrite everything else to index.html to allow client-side routing
+  # This preserves hash-based routing (#) in the URL
+  RewriteRule . /index.html [L]
+</IfModule>
+
+# ============================================
+# 2. PERFORMANCE OPTIMIZATION
+# ============================================
+
+# Enable Gzip Compression
+<IfModule mod_deflate.c>
+  # Compress HTML, CSS, JavaScript, Text, XML, fonts, SVG, and JSON
+  AddOutputFilterByType DEFLATE text/html
+  AddOutputFilterByType DEFLATE text/css
+  AddOutputFilterByType DEFLATE text/javascript
+  AddOutputFilterByType DEFLATE application/javascript
+  AddOutputFilterByType DEFLATE application/json
+  AddOutputFilterByType DEFLATE text/xml
+  AddOutputFilterByType DEFLATE application/xml
+  AddOutputFilterByType DEFLATE application/xhtml+xml
+  AddOutputFilterByType DEFLATE application/rss+xml
+  AddOutputFilterByType DEFLATE image/svg+xml
+  AddOutputFilterByType DEFLATE font/ttf
+  AddOutputFilterByType DEFLATE font/otf
+  AddOutputFilterByType DEFLATE font/woff
+  AddOutputFilterByType DEFLATE font/woff2
+  AddOutputFilterByType DEFLATE application/font-woff
+  AddOutputFilterByType DEFLATE application/font-woff2
+  
+  # Remove browser bugs (only needed for really old browsers)
+  BrowserMatch ^Mozilla/4 gzip-only-text/html
+  BrowserMatch ^Mozilla/4\.0[678] no-gzip
+  BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
+  Header append Vary User-Agent
+</IfModule>
+
+# Browser Caching
+<IfModule mod_expires.c>
+  ExpiresActive On
+  
+  # Hashed assets (JS, CSS) - 1 year (Vite adds hash to filenames)
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/css "access plus 1 year"
+  
+  # Images - 1 year
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/jpg "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/gif "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 1 year"
+  
+  # Fonts - 1 year
+  ExpiresByType font/ttf "access plus 1 year"
+  ExpiresByType font/otf "access plus 1 year"
+  ExpiresByType font/woff "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType application/font-woff "access plus 1 year"
+  ExpiresByType application/font-woff2 "access plus 1 year"
+  
+  # HTML - 1 hour (to allow updates)
+  ExpiresByType text/html "access plus 1 hour"
+  
+  # JSON - 1 month
+  ExpiresByType application/json "access plus 1 month"
+  
+  # Default fallback
+  ExpiresDefault "access plus 1 month"
+</IfModule>
+
+# ETags (Entity Tags) - Enable for better caching
+<IfModule mod_headers.c>
+  # ETags are enabled by default in Apache
+  # They help browsers validate cached content
+</IfModule>
+FileETag MTime Size
+
+# ============================================
+# 3. SECURITY HEADERS
+# ============================================
+
+<IfModule mod_headers.c>
+  # Prevent MIME type sniffing
+  Header set X-Content-Type-Options "nosniff"
+  
+  # Prevent clickjacking attacks
+  Header set X-Frame-Options "DENY"
+  
+  # Enable XSS protection (legacy browsers)
+  Header set X-XSS-Protection "1; mode=block"
+  
+  # Control referrer information
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  
+  # Permissions Policy (formerly Feature-Policy)
+  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  
+  # Strict Transport Security (HSTS) - Only if HTTPS is available
+  # Uncomment the line below if your site is served over HTTPS
+  # Header set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+</IfModule>
+
+# ============================================
+# 4. CONTENT SECURITY POLICY (CSP)
+# ============================================
+
+<IfModule mod_headers.c>
+  # Content Security Policy
+  # Note: Adjust domains as needed for your specific setup
+  Header set Content-Security-Policy "default-src 'self'; \
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://generativelanguage.googleapis.com; \
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://unpkg.com; \
+    font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com data:; \
+    img-src 'self' data: https: blob: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; \
+    connect-src 'self' https://btbibhexfeuwksqusakn.supabase.co https://*.supabase.co https://generativelanguage.googleapis.com https://api.resend.com wss://btbibhexfeuwksqusakn.supabase.co wss://*.supabase.co; \
+    frame-src 'self' https://btbibhexfeuwksqusakn.supabase.co; \
+    object-src 'none'; \
+    base-uri 'self'; \
+    form-action 'self'; \
+    frame-ancestors 'none'; \
+    upgrade-insecure-requests;"
+</IfModule>
+
+# ============================================
+# 5. PROTECT SENSITIVE FILES
+# ============================================
+
+# Block access to .env files
+<FilesMatch "\.env$|\.env\.local$|\.env\.production$|\.env\.development$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# Block access to .git directory
+<IfModule mod_rewrite.c>
+  RewriteRule ^\.git - [F,L]
+</IfModule>
+
+# Block access to sensitive files
+<FilesMatch "^(\.git|\.env|\.htaccess|\.htpasswd|\.gitignore|\.gitattributes|package\.json|package-lock\.json|tsconfig\.json|vite\.config\.ts|\.DS_Store|\.idea|\.vscode)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# Block access to source files
+<FilesMatch "\.(tsx?|jsx?|vue|svelte)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# ============================================
+# 6. ADDITIONAL SECURITY & OPTIMIZATION
+# ============================================
+
+# Disable directory browsing
+Options -Indexes
+
+# Prevent access to backup and source files
+<FilesMatch "(^#.*#|\.(bak|conf|dist|fla|in[ci]|log|orig|psd|sh|sql|sw[op])|~)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# Force UTF-8 encoding
+AddDefaultCharset UTF-8
+<IfModule mod_mime.c>
+  AddCharset UTF-8 .html .css .js .xml .json .rss .atom
+</IfModule>
+
+# ============================================
+# 7. ERROR PAGES (Optional - Customize as needed)
+# ============================================
+
+# Uncomment and customize if you have custom error pages
+# ErrorDocument 404 /index.html
+# ErrorDocument 403 /index.html
+# ErrorDocument 500 /index.html
+
+# ============================================
+# END OF CONFIGURATION
+# ============================================
