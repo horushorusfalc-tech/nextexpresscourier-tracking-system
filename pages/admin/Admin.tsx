@@ -88,17 +88,23 @@ const AdminContent: React.FC<{ role: UserRole }> = ({ role }) => {
     }
   };
 
-  const handleUpdateStatus = async (e: React.FormEvent) => {
+  const handleUpdateStatus = async (form: {
+    status: ShipmentStatus;
+    location: string;
+    description: string;
+    sendEmail: boolean;
+    selectedTemplateId: string;
+  }, e: React.FormEvent) => {
     e.preventDefault();
     if (!state.selectedShipment) return;
     dispatch({ type: 'SET_IS_SUBMITTING', payload: true });
     try {
-      const selectedTemplate = state.templates.find(t => t.id === state.statusForm.selectedTemplateId);
+      const selectedTemplate = state.templates.find(t => t.id === form.selectedTemplateId);
       await storageService.addTrackingEvent(state.selectedShipment.id, {
-        status: state.statusForm.status,
-        location: state.statusForm.location,
-        description: state.statusForm.description
-      }, state.statusForm.sendEmail ? selectedTemplate : undefined);
+        status: form.status,
+        location: form.location,
+        description: form.description
+      }, form.sendEmail ? selectedTemplate : undefined);
       showNotification('Protocol Logged.', 'success');
       dispatch({ type: 'SET_ACTIVE_MODAL', payload: null });
       dispatch({ type: 'SET_SELECTED_SHIPMENT', payload: null });

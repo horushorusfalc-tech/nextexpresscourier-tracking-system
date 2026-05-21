@@ -1,28 +1,44 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAdmin } from '../../AdminContext';
 import { ShipmentStatus } from '../../../../types';
 
 const STATUS_OPTIONS = Object.values(ShipmentStatus);
 
 interface ProtocolCommandModalProps {
-  onSave: (e: React.FormEvent) => void;
+  onSave: (form: {
+    status: ShipmentStatus;
+    location: string;
+    description: string;
+    sendEmail: boolean;
+    selectedTemplateId: string;
+  }, e: React.FormEvent) => void;
   onClose: () => void;
 }
 
 export const ProtocolCommandModal: React.FC<ProtocolCommandModalProps> = ({ onSave, onClose }) => {
   const { state, dispatch } = useAdmin();
   const firstRef = useRef<HTMLSelectElement>(null);
+  const [localStatusForm, setLocalStatusForm] = useState(state.statusForm);
 
   useEffect(() => {
+    setLocalStatusForm(state.statusForm);
     firstRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, state.statusForm]);
 
-  const sf = state.statusForm;
+  const handleLocalChange = (payload: Partial<typeof localStatusForm>) => {
+    setLocalStatusForm((prev) => ({ ...prev, ...payload }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    dispatch({ type: 'SET_STATUS_FORM', payload: localStatusForm });
+    onSave(localStatusForm, e);
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="protocol-title">
@@ -46,26 +62,26 @@ export const ProtocolCommandModal: React.FC<ProtocolCommandModalProps> = ({ onSa
         <form onSubmit={onSave} className="p-8 space-y-5">
           <div>
             <label htmlFor="protocol-status" className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Status</label>
-            <select id="protocol-status" ref={firstRef} value={sf.status} onChange={e => dispatch({ type: 'SET_STATUS_FORM', payload: { status: e.target.value as ShipmentStatus } })} required className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold uppercase tracking-wider transition-all bg-white">
+            <select id="protocol-status" ref={firstRef} value={localStatusForm.status} onChange={e => handleLocalChange({ status: e.target.value as ShipmentStatus })} required className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold uppercase tracking-wider transition-all bg-white">
               {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
             <label htmlFor="protocol-location" className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Location</label>
-            <input id="protocol-location" type="text" value={sf.location} onChange={e => dispatch({ type: 'SET_STATUS_FORM', payload: { location: e.target.value } })} required placeholder="e.g. London, UK" className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold uppercase tracking-wider transition-all" />
+            <input id="protocol-location" type="text" value={localStatusForm.location} onChange={e => handleLocalChange({ location: e.target.value })} required placeholder="e.g. London, UK" className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold uppercase tracking-wider transition-all" />
           </div>
           <div>
             <label htmlFor="protocol-description" className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Description</label>
-            <textarea id="protocol-description" value={sf.description} onChange={e => dispatch({ type: 'SET_STATUS_FORM', payload: { description: e.target.value } })} rows={4} placeholder="Enter status update details..." className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold resize-none transition-all" />
+            <textarea id="protocol-description" value={localStatusForm.description} onChange={e => handleLocalChange({ description: e.target.value })} rows={4} placeholder="Enter status update details..." className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold resize-none transition-all" />
           </div>
           <div className="flex items-center gap-3 pt-2">
-            <input id="protocol-send-email" type="checkbox" checked={sf.sendEmail} onChange={e => dispatch({ type: 'SET_STATUS_FORM', payload: { sendEmail: e.target.checked } })} className="w-5 h-5 rounded-full border-2 border-slate-300 text-amber-600 focus:ring-amber-600" />
+            <input id="protocol-send-email" type="checkbox" checked={localStatusForm.sendEmail} onChange={e => handleLocalChange({ sendEmail: e.target.checked })} className="w-5 h-5 rounded-full border-2 border-slate-300 text-amber-600 focus:ring-amber-600" />
             <label htmlFor="protocol-send-email" className="text-sm font-black uppercase tracking-wider text-slate-700">Send Email Notification</label>
           </div>
           {sf.sendEmail && (
             <div>
               <label htmlFor="protocol-template" className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Template</label>
-              <select id="protocol-template" value={sf.selectedTemplateId} onChange={e => dispatch({ type: 'SET_STATUS_FORM', payload: { selectedTemplateId: e.target.value } })} className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold uppercase tracking-wider transition-all bg-white">
+              <select id="protocol-template" value={localStatusForm.selectedTemplateId} onChange={e => handleLocalChange({ selectedTemplateId: e.target.value })} className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold uppercase tracking-wider transition-all bg-white">
                 <option value="ai">AI-Generated</option>
                 {state.templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
