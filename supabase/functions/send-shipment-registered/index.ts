@@ -18,6 +18,43 @@ interface RequestBody {
   trackUrl: string;
 }
 
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+const unauthorizedResponse = (status: number, message: string) =>
+  new Response(JSON.stringify({ success: false, error: message }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const verifyAdmin = async (authorization: string | null) => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    return { status: 500, message: "Server is not configured for secure auth." };
+  }
+
+  if (!authorization?.startsWith("Bearer ")) {
+    return { status: 401, message: "Authorization header missing or malformed." };
+  }
+
+  const authClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    global: {
+      headers: { Authorization: authorization },
+    },
+  });
+
+  const { data, error } = await authClient.auth.getUser();
+  if (error || !data?.user) {
+    return { status: 401, message: "Unauthorized access." };
+  }
+
+  const role = (data.user.user_metadata?.role || "").toString().toUpperCase();
+  if (role !== "ADMIN") {
+    return { status: 403, message: "Administrator access required." };
+  }
+
+  return { status: 200 };
+};
+
 function buildEmailHtml(toName: string, trackingNumber: string, origin: string, destination: string, trackUrl: string): string {
   return `
     <p>Hello ${toName},</p>
@@ -39,6 +76,11 @@ serve(async (req) => {
   }
 
   try {
+    const authResult = await verifyAdmin(req.headers.get("Authorization"));
+    if (authResult.status !== 200) {
+      return unauthorizedResponse(authResult.status, authResult.message);
+    }
+
     const body: RequestBody = await req.json();
     const {
       shipmentId,
@@ -67,11 +109,7 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
     const subject = `Shipment registered: ${trackingNumber}`;
     const from = "NextExpress <updates@nextexpresscourier.com>";

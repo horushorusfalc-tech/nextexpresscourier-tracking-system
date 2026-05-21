@@ -104,6 +104,17 @@ export const storageService = {
     });
   },
 
+  invokeEdgeFunction: async (name: string, options: any = {}) => {
+    const { data } = await (supabase.auth as any).getSession();
+    const accessToken = data?.session?.access_token;
+    const headers = {
+      ...(options.headers ?? {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+    };
+
+    return supabase.functions.invoke(name, { ...options, headers });
+  },
+
   getShipments: async (): Promise<Shipment[]> => {
     // This function requires authentication (used by admin dashboard)
     // RLS will block anonymous users from listing all shipments
@@ -252,7 +263,7 @@ support@nextexpresscourier.com
 
         // Call the send-email Edge Function
         try {
-          const { error: emailError } = await supabase.functions.invoke('send-email', {
+          const { error: emailError } = await storageService.invokeEdgeFunction('send-email', {
             body: {
               to: shipmentData.recipientEmail,
               subject: emailSubject,
@@ -357,7 +368,7 @@ support@nextexpresscourier.com
       } else {
         // Generate email content using Edge Function
         try {
-          const { data: aiContent, error: aiError } = await supabase.functions.invoke('generate-email-content', {
+          const { data: aiContent, error: aiError } = await storageService.invokeEdgeFunction('generate-email-content', {
             body: {
               recipientName: shipmentData.recipient_name,
               trackingNumber: shipmentData.tracking_number,
@@ -402,7 +413,7 @@ support@nextexpresscourier.com
 
       // Send email using Edge Function
       try {
-        const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
+        const { data: emailResult, error: emailError } = await storageService.invokeEdgeFunction('send-email', {
           body: {
             to: shipmentData.recipient_email,
             subject: emailContent.subject,

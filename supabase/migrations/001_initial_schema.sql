@@ -98,11 +98,57 @@ DROP POLICY IF EXISTS "shipments_auth_insert" ON public.shipments;
 DROP POLICY IF EXISTS "shipments_auth_update" ON public.shipments;
 DROP POLICY IF EXISTS "shipments_auth_delete" ON public.shipments;
 CREATE POLICY "shipments_anon_select" ON public.shipments
-  FOR SELECT TO anon USING (true);
+  FOR SELECT TO anon USING (false);
 CREATE POLICY "shipments_auth_select" ON public.shipments FOR SELECT TO authenticated USING (true);
 CREATE POLICY "shipments_auth_insert" ON public.shipments FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "shipments_auth_update" ON public.shipments FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "shipments_auth_delete" ON public.shipments FOR DELETE TO authenticated USING (true);
+
+-- Public lookup for a single shipment by tracking number; anon users may use the RPC function rather than direct table queries.
+CREATE OR REPLACE FUNCTION public.get_shipment_by_tracking_public(p_tracking_number text)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT jsonb_build_object(
+    'id', s.id,
+    'tracking_number', s.tracking_number,
+    'sender_name', s.sender_name,
+    'sender_address', s.sender_address,
+    'recipient_name', s.recipient_name,
+    'recipient_email', s.recipient_email,
+    'recipient_address', s.recipient_address,
+    'origin', s.origin,
+    'destination', s.destination,
+    'current_status', s.current_status,
+    'estimated_delivery', s.estimated_delivery,
+    'weight', s.weight,
+    'dimensions', s.dimensions,
+    'service_type', s.service_type,
+    'content_description', s.content_description,
+    'declared_value', s.declared_value,
+    'packaging_type', s.packaging_type,
+    'cancellation_reason', s.cancellation_reason,
+    'created_at', s.created_at,
+    'tracking_events', COALESCE(
+      (SELECT jsonb_agg(te ORDER BY te.timestamp DESC)
+       FROM public.tracking_events te
+       WHERE te.shipment_id = s.id),
+      '[]'::jsonb
+    )
+  )
+  FROM public.shipments s
+  WHERE upper(trim(s.tracking_number)) = upper(trim(p_tracking_number))
+  LIMIT 1;
+$$;
+
+COMMENT ON FUNCTION public.get_shipment_by_tracking_public(text) IS
+  'Public shipment lookup by tracking number. Allows anon single-record access via RPC.';
+
+GRANT EXECUTE ON FUNCTION public.get_shipment_by_tracking_public(text) TO anon;
+GRANT EXECUTE ON FUNCTION public.get_shipment_by_tracking_public(text) TO authenticated;
 
 -- ============================================
 -- RLS: TRACKING_EVENTS
@@ -112,9 +158,7 @@ ALTER TABLE public.tracking_events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "tracking_events_anon_select" ON public.tracking_events;
 CREATE POLICY "tracking_events_anon_select" ON public.tracking_events
   FOR SELECT TO anon
-  USING (
-    EXISTS (SELECT 1 FROM public.shipments s WHERE s.id = tracking_events.shipment_id)
-  );
+  USING (false);
 
 DROP POLICY IF EXISTS "tracking_events_auth_select" ON public.tracking_events;
 DROP POLICY IF EXISTS "tracking_events_auth_insert" ON public.tracking_events;

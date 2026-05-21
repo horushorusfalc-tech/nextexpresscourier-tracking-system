@@ -57,7 +57,7 @@ const AdminContent: React.FC<{ role: UserRole }> = ({ role }) => {
       if (isNew) {
         try {
           const trackUrl = `${window.location.origin}${window.location.pathname || ''}#/track/${saved.trackingNumber}`;
-          await supabase.functions.invoke('send-shipment-registered', {
+          await storageService.invokeEdgeFunction('send-shipment-registered', {
             body: {
               shipmentId: saved.id,
               trackingNumber: saved.trackingNumber,

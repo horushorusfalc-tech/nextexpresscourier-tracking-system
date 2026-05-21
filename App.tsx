@@ -42,6 +42,18 @@ const App: React.FC = () => {
   const [auth, setAuth] = useState<AuthState>({ isLoggedIn: false, role: null });
   const [loading, setLoading] = useState(true);
 
+  const Unauthorized: React.FC = () => (
+    <div className="min-h-[60vh] flex items-center justify-center bg-slate-50 px-6">
+      <div className="max-w-xl w-full bg-white border border-slate-200 rounded-[2rem] shadow-xl p-10 text-center">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-rose-600 mb-4">Access denied</p>
+        <h2 className="text-3xl font-black text-slate-950 mb-4">Administrator access required</h2>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          You are signed in, but you do not have the required admin privileges for this section. Please use an administrator account.
+        </p>
+      </div>
+    </div>
+  );
+
   if (!isSupabaseConfigured) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
@@ -107,9 +119,13 @@ const App: React.FC = () => {
               path="/admin"
               element={
                 auth.isLoggedIn ? (
-                  <AdminErrorBoundary>
-                    <Admin role={auth.role ?? UserRole.STAFF} />
-                  </AdminErrorBoundary>
+                  auth.role === UserRole.ADMIN ? (
+                    <AdminErrorBoundary>
+                      <Admin role={auth.role} />
+                    </AdminErrorBoundary>
+                  ) : (
+                    <Unauthorized />
+                  )
                 ) : (
                   <Login />
                 )
