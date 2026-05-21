@@ -214,6 +214,67 @@ export const storageService = {
       console.error("Supabase Upsert Error:", error);
       throw error;
     }
+
+    // Send confirmation email to recipient after successful shipment creation
+    try {
+      const shipmentData = mapShipment(data);
+      const isNewShipment = !validatedData.id; // Only send for new shipments, not updates
+      
+      if (isNewShipment && shipmentData.recipientEmail) {
+        // Generate a friendly confirmation email
+        const emailSubject = `Shipment Confirmation: ${shipmentData.trackingNumber} - NextExpress`;
+        const emailBody = `Dear ${shipmentData.recipientName},
+
+Your shipment has been registered and is being prepared for dispatch.
+
+Shipment Details:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tracking Number: ${shipmentData.trackingNumber}
+Service Type: ${shipmentData.serviceType}
+Origin: ${shipmentData.origin}
+Destination: ${shipmentData.destination}
+Estimated Delivery: ${shipmentData.estimatedDelivery}
+Weight: ${shipmentData.weight}
+
+You can track your package anytime at: NextExpress Courier Tracking
+
+This is an automated confirmation. Please keep your tracking number safe for future reference.
+
+Best regards,
+NextExpress Courier Services
+support@nextexpresscourier.com
++61 488 293 104 (Australia)
++971 50 492 8173 (Dubai)
++44 7700 900 482 (UK)`;
+
+        // Call the send-email Edge Function
+        try {
+          const { error: emailError } = await supabase.functions.invoke('send-email', {
+            body: {
+              to: shipmentData.recipientEmail,
+              subject: emailSubject,
+              htmlBody: `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; word-wrap: break-word;">${emailBody}</pre>`,
+              textBody: emailBody,
+              shipmentId: shipmentData.id
+            }
+          });
+
+          if (emailError) {
+            console.warn("Email notification failed (non-blocking):", emailError);
+            // Don't throw - allow shipment creation to succeed even if email fails
+          } else {
+            console.log(`Confirmation email sent to ${shipmentData.recipientEmail}`);
+          }
+        } catch (emailSendErr) {
+          console.warn("Email sending exception (non-blocking):", emailSendErr);
+          // Non-blocking - shipment was already created successfully
+        }
+      }
+    } catch (notificationErr) {
+      console.warn("Post-save notification failed (non-blocking):", notificationErr);
+      // Non-blocking - shipment was already created successfully
+    }
+
     return mapShipment(data);
   },
 
