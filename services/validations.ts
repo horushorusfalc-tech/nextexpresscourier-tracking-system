@@ -139,8 +139,20 @@ export type ValidationError = {
 };
 
 // Helper function to format Zod errors into structured format
-export function formatZodError(error: z.ZodError): ValidationError[] {
-  return error.errors.map(err => ({
+export function formatZodError(error: z.ZodError | unknown): ValidationError[] {
+  if (!error || typeof error !== 'object' || !('errors' in error)) {
+    const message = typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as any).message)
+      : 'Unknown validation error';
+    return [{ field: 'unknown', message }];
+  }
+
+  const zodError = error as z.ZodError;
+  if (!Array.isArray(zodError.errors)) {
+    return [{ field: 'unknown', message: 'Invalid Zod error format' }];
+  }
+
+  return zodError.errors.map(err => ({
     field: err.path.join('.'),
     message: err.message
   }));

@@ -80,7 +80,9 @@ const AdminContent: React.FC<{ role: UserRole }> = ({ role }) => {
       dispatch({ type: 'RESET_FORMS' });
       refreshData();
     } catch (err: any) {
-      showNotification(`Sync Failed: ${err.message || 'Unknown Error'}`, 'error');
+      const message = err?.message || (typeof err === 'string' ? err : JSON.stringify(err)) || 'Unknown Error';
+      showNotification(`Sync Failed: ${message}`, 'error');
+      console.error('Save asset error:', err);
     } finally {
       dispatch({ type: 'SET_IS_SUBMITTING', payload: false });
     }
