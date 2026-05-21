@@ -47,7 +47,7 @@ const AdminContent: React.FC<{ role: UserRole }> = ({ role }) => {
     try {
       const payload: Partial<Shipment> = {
         ...state.formData,
-        trackingNumber: state.formData.trackingNumber || storageService.generateTrackingNumber(),
+        trackingNumber: state.formData.trackingNumber?.trim().toUpperCase() || storageService.generateTrackingNumber(),
         id: state.selectedShipment?.id
       };
       const saved = await storageService.saveShipment(payload);

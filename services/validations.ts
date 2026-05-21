@@ -15,10 +15,16 @@ export const ServiceTypeEnum = z.enum([
 // Shipment Schema
 export const shipmentSchema = z.object({
   id: z.string().optional(),
-  trackingNumber: z.union([
+  trackingNumber: z.preprocess((val) => {
+    if (typeof val === 'string') {
+      return val.trim().toUpperCase();
+    }
+    return val;
+  },
+  z.union([
     z.string().regex(/^NEC\d{8}$/, 'Tracking number must match format: NEC followed by 8 digits'),
     z.undefined()
-  ]).optional(),
+  ]).optional()),
   senderName: z.string()
     .min(2, 'Sender name must be at least 2 characters')
     .max(100, 'Sender name must not exceed 100 characters'),

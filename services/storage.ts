@@ -160,6 +160,9 @@ export const storageService = {
     // Sanitize input data
     const sanitizedShipment = {
       ...shipment,
+      trackingNumber: shipment.trackingNumber !== undefined && shipment.trackingNumber !== null
+        ? sanitize(String(shipment.trackingNumber)).trim().toUpperCase()
+        : shipment.trackingNumber,
       senderName: shipment.senderName ? sanitize(String(shipment.senderName)) : shipment.senderName,
       senderAddress: shipment.senderAddress ? sanitize(String(shipment.senderAddress)) : shipment.senderAddress,
       senderEmail: shipment.senderEmail ? sanitize(String(shipment.senderEmail)) : shipment.senderEmail,
