@@ -1,10 +1,31 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const getCorsHeaders = (request: Request) => {
+  const requestOrigin = request.headers.get("origin");
+  const allowedOrigin = !allowedOrigins.length
+    ? "*"
+    : requestOrigin && allowedOrigins.includes(requestOrigin)
+      ? requestOrigin
+      : null;
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin ?? "null",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "OPTIONS, POST",
+  };
 };
+
+const buildResponse = (req: Request, body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+  });
 
 interface RequestBody {
   shipmentId: string;
@@ -21,11 +42,8 @@ interface RequestBody {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-const unauthorizedResponse = (status: number, message: string) =>
-  new Response(JSON.stringify({ success: false, error: message }), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+const unauthorizedResponse = (req: Request, status: number, message: string) =>
+  buildResponse(req, { success: false, error: message }, status);
 
 const verifyAdmin = async (authorization: string | null) => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -72,13 +90,21 @@ function buildEmailText(toName: string, trackingNumber: string, origin: string, 
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getCorsHeaders(req) });
+  }
+
+  if (allowedOrigins.length && !req.headers.get("origin")) {
+    return buildResponse(req, { success: false, error: "Origin missing." }, 403);
+  }
+
+  if (allowedOrigins.length && req.headers.get("origin") && !allowedOrigins.includes(req.headers.get("origin")!)) {
+    return buildResponse(req, { success: false, error: "Origin not allowed." }, 403);
   }
 
   try {
     const authResult = await verifyAdmin(req.headers.get("Authorization"));
     if (authResult.status !== 200) {
-      return unauthorizedResponse(authResult.status, authResult.message);
+      return unauthorizedResponse(req, authResult.status, authResult.message);
     }
 
     const body: RequestBody = await req.json();
@@ -95,18 +121,12 @@ serve(async (req) => {
     } = body;
 
     if (!shipmentId || !trackingNumber || !recipientEmail || !recipientName || !origin || !destination || !trackUrl) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return buildResponse(req, { success: false, error: "Missing required fields" }, 400);
     }
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) {
-      return new Response(
-        JSON.stringify({ success: false, error: "RESEND_API_KEY not set" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return buildResponse(req, { success: false, error: "RESEND_API_KEY not set" }, 500);
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -141,15 +161,9 @@ serve(async (req) => {
       await sendOne(senderEmail.trim(), senderName);
     }
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return buildResponse(req, { success: true }, 200);
   } catch (err) {
     console.error("send-shipment-registered error:", err);
-    return new Response(
-      JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return buildResponse(req, { success: false, error: err instanceof Error ? err.message : "Unknown error" }, 500);
   }
 });

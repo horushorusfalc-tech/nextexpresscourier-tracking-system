@@ -1,10 +1,31 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const getCorsHeaders = (request: Request) => {
+  const requestOrigin = request.headers.get("origin");
+  const allowedOrigin = !allowedOrigins.length
+    ? "*"
+    : requestOrigin && allowedOrigins.includes(requestOrigin)
+      ? requestOrigin
+      : null;
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin ?? "null",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "OPTIONS, POST",
+  };
 };
+
+const buildResponse = (req: Request, body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+  });
 
 interface RequestBody {
   recipientName: string;
@@ -22,11 +43,8 @@ interface GeminiResponse {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-const unauthorizedResponse = (status: number, message: string) =>
-  new Response(JSON.stringify({ subject: `Shipment Update`, body: message }), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+const unauthorizedResponse = (req: Request, status: number, message: string) =>
+  buildResponse(req, { subject: `Shipment Update`, body: message }, status);
 
 const verifyAdmin = async (authorization: string | null) => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -65,13 +83,21 @@ const getFallbackContent = (body?: Partial<RequestBody>): GeminiResponse => {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getCorsHeaders(req) });
+  }
+
+  if (allowedOrigins.length && !req.headers.get("origin")) {
+    return buildResponse(req, { subject: `Shipment Update`, body: "Origin missing." }, 403);
+  }
+
+  if (allowedOrigins.length && req.headers.get("origin") && !allowedOrigins.includes(req.headers.get("origin")!)) {
+    return buildResponse(req, { subject: `Shipment Update`, body: "Origin not allowed." }, 403);
   }
 
   try {
     const authResult = await verifyAdmin(req.headers.get("Authorization"));
     if (authResult.status !== 200) {
-      return unauthorizedResponse(authResult.status, authResult.message);
+      return unauthorizedResponse(req, authResult.status, authResult.message);
     }
 
     let body: RequestBody;
@@ -79,37 +105,19 @@ serve(async (req) => {
       body = await req.json();
     } catch (error) {
       console.error("Failed to parse request body:", error);
-      return new Response(
-        JSON.stringify(getFallbackContent()),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return buildResponse(req, getFallbackContent(), 200);
     }
 
     const { recipientName, trackingNumber, status, location, description = "" } = body;
 
     if (!recipientName || !trackingNumber || !status || !location) {
-      return new Response(
-        JSON.stringify(getFallbackContent(body)),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return buildResponse(req, getFallbackContent(body), 200);
     }
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
       console.warn("GEMINI_API_KEY is not set, using fallback template");
-      return new Response(
-        JSON.stringify(getFallbackContent(body)),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return buildResponse(req, getFallbackContent(body), 200);
     }
 
     try {
@@ -153,31 +161,13 @@ serve(async (req) => {
 
       const emailContent: GeminiResponse = JSON.parse(content);
 
-      return new Response(
-        JSON.stringify(emailContent),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return buildResponse(req, emailContent, 200);
     } catch (aiError) {
       console.warn("AI Generation failed, using fallback template:", aiError);
-      return new Response(
-        JSON.stringify(getFallbackContent(body)),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return buildResponse(req, getFallbackContent(body), 200);
     }
   } catch (error) {
     console.error("Error in generate-email-content function:", error);
-    return new Response(
-      JSON.stringify(getFallbackContent()),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return buildResponse(req, getFallbackContent(), 200);
   }
 });

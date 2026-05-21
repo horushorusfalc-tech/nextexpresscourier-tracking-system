@@ -85,7 +85,16 @@ const App: React.FC = () => {
       });
     });
 
-    return () => subscription.unsubscribe();
+    const preventContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+
+    document.addEventListener('contextmenu', preventContextMenu);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener('contextmenu', preventContextMenu);
+    };
   }, []);
 
   const handleLogout = async () => {

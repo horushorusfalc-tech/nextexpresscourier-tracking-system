@@ -1,10 +1,31 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const getCorsHeaders = (request: Request) => {
+  const requestOrigin = request.headers.get("origin");
+  const allowedOrigin = !allowedOrigins.length
+    ? "*"
+    : requestOrigin && allowedOrigins.includes(requestOrigin)
+      ? requestOrigin
+      : null;
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin ?? "null",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "OPTIONS, POST",
+  };
 };
+
+const buildResponse = (req: Request, body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+  });
 
 interface RequestBody {
   to: string;
@@ -17,74 +38,32 @@ interface RequestBody {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-const unauthorizedResponse = (status: number, message: string) =>
-  new Response(JSON.stringify({ success: false, error: message }), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-
-const verifyAdmin = async (authorization: string | null) => {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    return { status: 500, message: "Server is not configured for secure auth." };
-  }
-
-  if (!authorization?.startsWith("Bearer ")) {
-    return { status: 401, message: "Authorization header missing or malformed." };
-  }
-
-  const authClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    global: {
-      headers: { Authorization: authorization },
-    },
-  });
-
-  const { data, error } = await authClient.auth.getUser();
-  if (error || !data?.user) {
-    return { status: 401, message: "Unauthorized access." };
-  }
-
-  const role = (data.user.user_metadata?.role || "").toString().toUpperCase();
-  if (role !== "ADMIN") {
-    return { status: 403, message: "Administrator access required." };
-  }
-
-  return { status: 200 };
-};
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getCorsHeaders(req) });
+  }
+
+  const requestOrigin = req.headers.get("origin");
+  if (allowedOrigins.length && !requestOrigin) {
+    return buildResponse(req, { success: false, error: "Origin missing." }, 403);
+  }
+
+  if (allowedOrigins.length && requestOrigin && !allowedOrigins.includes(requestOrigin)) {
+    return buildResponse(req, { success: false, error: "Origin not allowed." }, 403);
   }
 
   try {
-    const authResult = await verifyAdmin(req.headers.get("Authorization"));
-    if (authResult.status !== 200) {
-      return unauthorizedResponse(authResult.status, authResult.message);
-    }
-
     const body: RequestBody = await req.json();
     const { to, subject, htmlBody, textBody, shipmentId } = body;
 
     if (!to || !subject || !htmlBody || !textBody || !shipmentId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing required fields" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return buildResponse(req, { success: false, error: "Missing required fields" }, 400);
     }
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) {
       console.error("RESEND_API_KEY is not set in Supabase secrets");
-      return new Response(
-        JSON.stringify({ success: false, error: "Email service not configured" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return buildResponse(req, { success: false, error: "Email service not configured" }, 500);
     }
 
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -122,31 +101,13 @@ serve(async (req) => {
     }
 
     if (resendResponse.ok) {
-      return new Response(
-        JSON.stringify({ success: true, messageId: resendResult.id }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return buildResponse(req, { success: true, messageId: resendResult.id }, 200);
     }
 
-    return new Response(
-      JSON.stringify({ success: false, error: resendResult.message || "Failed to send email" }),
-      {
-        status: resendResponse.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return buildResponse(req, { success: false, error: resendResult.message || "Failed to send email" }, resendResponse.status);
   } catch (error) {
     console.error("Error in send-email function:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return buildResponse(req, { success: false, error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
 
