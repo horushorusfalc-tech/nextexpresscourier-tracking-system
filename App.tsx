@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, Suspense, Component, ErrorInfo } from 'react';
+import React, { useState, useEffect, Component, ErrorInfo } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
@@ -9,8 +9,7 @@ import { Login } from './pages/Login';
 import { AIChat } from './components/AIChat';
 import { storageService, isSupabaseConfigured } from './services/storage';
 import { AuthState, UserRole } from './types';
-
-const Admin = React.lazy(() => import('./pages/admin/Admin'));
+import { Admin } from './pages/admin/Admin';
 
 class AdminErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -112,37 +111,29 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <Layout isAdmin={auth.isLoggedIn && auth.role === UserRole.ADMIN} onLogout={handleLogout}>
-        <Suspense
-          fallback={
-            <div className="min-h-[50vh] flex items-center justify-center">
-              <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin" />
-            </div>
-          }
-        >
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/track/:id" element={<Track />} />
-            <Route path="/track" element={<Track />} />
-            <Route path="/ship" element={<Ship />} />
-            <Route
-              path="/admin"
-              element={
-                auth.isLoggedIn ? (
-                  auth.role === UserRole.ADMIN ? (
-                    <AdminErrorBoundary>
-                      <Admin role={auth.role} />
-                    </AdminErrorBoundary>
-                  ) : (
-                    <Unauthorized />
-                  )
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/track/:id" element={<Track />} />
+          <Route path="/track" element={<Track />} />
+          <Route path="/ship" element={<Ship />} />
+          <Route
+            path="/admin"
+            element={
+              auth.isLoggedIn ? (
+                auth.role === UserRole.ADMIN ? (
+                  <AdminErrorBoundary>
+                    <Admin role={auth.role} />
+                  </AdminErrorBoundary>
                 ) : (
-                  <Login />
+                  <Unauthorized />
                 )
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+              ) : (
+                <Login />
+              )
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
         <AIChat />
       </Layout>
     </HashRouter>

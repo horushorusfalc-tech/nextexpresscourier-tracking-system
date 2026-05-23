@@ -110,8 +110,8 @@ const AdminContent: React.FC<{ role: UserRole }> = ({ role }) => {
       dispatch({ type: 'SET_SELECTED_SHIPMENT', payload: null });
       dispatch({ type: 'RESET_FORMS' });
       refreshData();
-    } catch (err) {
-      showNotification('Operational Error.', 'error');
+    } catch (err: any) {
+      showNotification(err?.message || 'Operational Error.', 'error');
     } finally {
       dispatch({ type: 'SET_IS_SUBMITTING', payload: false });
     }

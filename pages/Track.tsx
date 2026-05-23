@@ -7,13 +7,18 @@ export const Track: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searchInput, setSearchInput] = useState(id || '');
+  const [searchInput, setSearchInput] = useState(id?.toUpperCase() || '');
+  const [notFound, setNotFound] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (id) performLookup(id);
+    if (id) {
+      setSearchInput(id.toUpperCase());
+      performLookup(id);
+    }
   }, [id]);
 
   useEffect(() => {
@@ -25,11 +30,21 @@ export const Track: React.FC = () => {
 
   const performLookup = async (trackingNo: string) => {
     setLoading(true);
+    setNotFound(false);
+    setErrorMessage(null);
+
     try {
       const result = await storageService.getShipmentByTracking(trackingNo);
+      if (!result) {
+        setShipment(null);
+        setNotFound(true);
+        return;
+      }
       setShipment(result);
-    } catch {
+    } catch (err: any) {
       setShipment(null);
+      setNotFound(false);
+      setErrorMessage(err?.message || 'Unable to load tracking information. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -68,7 +83,7 @@ export const Track: React.FC = () => {
     if (!shipment) return 'Calculating Transit...';
     if (shipment.currentStatus === ShipmentStatus.DELIVERED) return 'Delivered';
     if (shipment.currentStatus === ShipmentStatus.CANCELLED) return 'Cancelled';
-    if (!shipment.estimatedDelivery) return 'Calculating Transit...';
+    if (!shipment.estimatedDelivery) return 'Transit ETA unavailable';
 
     const now = new Date();
     const eta = new Date(shipment.estimatedDelivery);
@@ -208,6 +223,16 @@ export const Track: React.FC = () => {
           {!shipment ? (
             <div className="max-w-4xl mx-auto text-center">
               <p className="text-[10px] font-black text-amber-600 uppercase tracking-[0.3em] mb-4">Global Tracking System</p>
+              {notFound && (
+                <div className="mb-8 rounded-[2rem] border border-rose-200 bg-rose-50 px-8 py-6 text-rose-700 text-sm font-bold uppercase tracking-wider">
+                  No shipment was found for that tracking number. Please confirm the NEC number and try again.
+                </div>
+              )}
+              {errorMessage && (
+                <div className="mb-8 rounded-[2rem] border border-amber-200 bg-amber-50 px-8 py-6 text-amber-700 text-sm font-bold uppercase tracking-wider">
+                  {errorMessage}
+                </div>
+              )}
               <h1 className="text-6xl sm:text-7xl md:text-8xl font-black text-slate-950 mb-8 tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
                 TRACE ASSET
               </h1>
@@ -391,20 +416,32 @@ export const Track: React.FC = () => {
                   <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] mb-10 border-b border-slate-800 pb-4">Real-Time Audit Trail</h3>
                   <div className="space-y-10 relative">
                     <div className="absolute left-[6px] top-2 bottom-2 w-px bg-slate-800"></div>
-                    {shipment.events.map((event, idx) => (
-                      <div key={event.id} className="relative pl-10 timeline-item" style={{ animationDelay: `${idx * 0.1}s` }}>
-                        <div className={`absolute left-0 top-1 w-[12px] h-[12px] rounded-full border-2 border-slate-950 shadow-sm transition-all ${
-                          idx === 0 ? 'bg-amber-600 pulse-ring' : 'bg-slate-600'
-                        }`}></div>
-                        <div className="space-y-2">
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                            {new Date(event.timestamp).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {shipment.events.length === 0 ? (
+                      <div className="relative pl-10 timeline-item">
+                        <div className="space-y-4 rounded-[2rem] border border-slate-800 bg-slate-900/90 p-10 text-center text-slate-300">
+                          <p className="text-sm font-black uppercase tracking-widest">Audit trail not found</p>
+                          <p className="text-xs leading-relaxed">
+                            The shipment is visible, but no protocol events were returned from Supabase.
+                            Please confirm that the shipment has saved tracking events in the admin panel and that the public tracking function is updated to include `tracking_events`.
                           </p>
-                          <p className="text-base font-black text-white uppercase tracking-tight leading-none">{event.status} | {event.location}</p>
-                          <p className="text-[13px] text-slate-400 leading-relaxed italic opacity-80">"{event.description}"</p>
                         </div>
                       </div>
-                    ))}
+                    ) : (
+                      shipment.events.map((event, idx) => (
+                        <div key={event.id} className="relative pl-10 timeline-item" style={{ animationDelay: `${idx * 0.1}s` }}>
+                          <div className={`absolute left-0 top-1 w-[12px] h-[12px] rounded-full border-2 border-slate-950 shadow-sm transition-all ${
+                            idx === 0 ? 'bg-amber-600 pulse-ring' : 'bg-slate-600'
+                          }`}></div>
+                          <div className="space-y-2">
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                              {new Date(event.timestamp).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                            <p className="text-base font-black text-white uppercase tracking-tight leading-none">{event.status} | {event.location}</p>
+                            <p className="text-[13px] text-slate-400 leading-relaxed italic opacity-80">"{event.description}"</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>

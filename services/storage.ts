@@ -155,16 +155,42 @@ export const storageService = {
     if (error) throw error;
     if (!data) return null;
 
+    const shipmentData = Array.isArray(data) ? data[0] : data;
+    if (!shipmentData) return null;
+
     // Email logs: only accessible when authenticated; anon gets empty array
     let logs: any[] = [];
     try {
-      const { data: l } = await supabase.from('email_logs').select('*').eq('shipment_id', data.id);
+      const { data: l } = await supabase.from('email_logs').select('*').eq('shipment_id', shipmentData.id);
       logs = l || [];
     } catch {
       // Expected for anonymous users (RLS blocks access)
     }
 
-    return mapShipment({ ...data, email_logs: logs });
+    let trackingEvents = shipmentData.tracking_events;
+    if ((!trackingEvents || !Array.isArray(trackingEvents)) && shipmentData.id) {
+      try {
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('tracking_events')
+          .select('*')
+          .eq('shipment_id', shipmentData.id)
+          .order('timestamp', { ascending: false });
+
+        if (!eventsError && Array.isArray(eventsData)) {
+          trackingEvents = eventsData;
+        } else if (eventsError) {
+          console.warn('Tracking event fallback query error:', eventsError.message);
+        }
+      } catch (err) {
+        console.warn('Fallback tracking event fetch failed:', err);
+      }
+    }
+
+    if (!trackingEvents || (Array.isArray(trackingEvents) && trackingEvents.length === 0)) {
+      console.warn(`Shipment ${shipmentData.tracking_number || shipmentData.id} loaded, but no tracking events were returned by the public lookup.`);
+    }
+
+    return mapShipment({ ...shipmentData, tracking_events: trackingEvents, email_logs: logs });
   },
 
   saveShipment: async (shipment: Partial<Shipment>): Promise<Shipment> => {

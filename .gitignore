@@ -34,3 +34,9 @@ secrets.json
 *.njsproj
 *.sln
 *.sw?
+
+# Local Netlify folder
+.netlify
+
+# Local Supabase CLI temp files
+supabase/.temp

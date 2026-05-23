@@ -59,7 +59,7 @@ export const ProtocolCommandModal: React.FC<ProtocolCommandModalProps> = ({ onSa
             </svg>
           </button>
         </div>
-        <form onSubmit={onSave} className="p-8 space-y-5">
+        <form onSubmit={handleSubmit} className="p-8 space-y-5">
           <div>
             <label htmlFor="protocol-status" className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Status</label>
             <select id="protocol-status" ref={firstRef} value={localStatusForm.status} onChange={e => handleLocalChange({ status: e.target.value as ShipmentStatus })} required className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold uppercase tracking-wider transition-all bg-white">
@@ -72,13 +72,13 @@ export const ProtocolCommandModal: React.FC<ProtocolCommandModalProps> = ({ onSa
           </div>
           <div>
             <label htmlFor="protocol-description" className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Description</label>
-            <textarea id="protocol-description" value={localStatusForm.description} onChange={e => handleLocalChange({ description: e.target.value })} rows={4} placeholder="Enter status update details..." className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold resize-none transition-all" />
+            <textarea id="protocol-description" value={localStatusForm.description} onChange={e => handleLocalChange({ description: e.target.value })} rows={4} minLength={5} required placeholder="Enter status update details..." className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold resize-none transition-all" />
           </div>
           <div className="flex items-center gap-3 pt-2">
             <input id="protocol-send-email" type="checkbox" checked={localStatusForm.sendEmail} onChange={e => handleLocalChange({ sendEmail: e.target.checked })} className="w-5 h-5 rounded-full border-2 border-slate-300 text-amber-600 focus:ring-amber-600" />
             <label htmlFor="protocol-send-email" className="text-sm font-black uppercase tracking-wider text-slate-700">Send Email Notification</label>
           </div>
-          {sf.sendEmail && (
+          {localStatusForm.sendEmail && (
             <div>
               <label htmlFor="protocol-template" className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Template</label>
               <select id="protocol-template" value={localStatusForm.selectedTemplateId} onChange={e => handleLocalChange({ selectedTemplateId: e.target.value })} className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold uppercase tracking-wider transition-all bg-white">

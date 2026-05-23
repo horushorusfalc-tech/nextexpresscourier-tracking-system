@@ -65,6 +65,7 @@ serve(async (req) => {
       console.error("RESEND_API_KEY is not set in Supabase secrets");
       return buildResponse(req, { success: false, error: "Email service not configured" }, 500);
     }
+    const RESEND_FROM = Deno.env.get("RESEND_FROM") ?? "NextExpress <updates@nextexpresscourier.com>";
 
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
@@ -77,23 +78,28 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "NextExpress <updates@nextexpresscourier.com>",
+        from: RESEND_FROM,
         to: [to],
         subject,
         text: textBody,
         html: htmlBody,
       }),
     });
-
     const resendResult = await resendResponse.json();
+    if (!resendResponse.ok) {
+      console.error("Resend API error:", resendResponse.status, resendResult);
+    }
     const logStatus = resendResponse.ok ? "SENT" : "FAILED";
-    const logData = {
+    const logData: any = {
       shipment_id: shipmentId,
       subject,
       body: textBody,
       recipient: to,
       status: logStatus,
     };
+    if (!resendResponse.ok) {
+      logData.error = JSON.stringify(resendResult);
+    }
 
     const { error: logError } = await supabaseClient.from("email_logs").insert(logData);
     if (logError) {

@@ -132,7 +132,7 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
     const subject = `Shipment registered: ${trackingNumber}`;
-    const from = "NextExpress <updates@nextexpresscourier.com>";
+    const from = Deno.env.get("RESEND_FROM") ?? "NextExpress <updates@nextexpresscourier.com>";
 
     const sendOne = async (to: string, toName: string) => {
       const html = buildEmailHtml(toName, trackingNumber, origin, destination, trackUrl);
@@ -145,14 +145,20 @@ serve(async (req) => {
         },
         body: JSON.stringify({ from, to: [to], subject, html, text }),
       });
+      const resendResult = await res.json();
+      if (!res.ok) {
+        console.error("Resend API error (send-shipment-registered):", res.status, resendResult);
+      }
       const status = res.ok ? "SENT" : "FAILED";
-      await supabase.from("email_logs").insert({
+      const logRow: any = {
         shipment_id: shipmentId,
         subject,
         body: text,
         recipient: to,
         status,
-      });
+      };
+      if (!res.ok) logRow.error = JSON.stringify(resendResult || {});
+      await supabase.from("email_logs").insert(logRow);
       return res.ok;
     };
 
