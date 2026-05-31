@@ -10,6 +10,7 @@ import { AIChat } from './components/AIChat';
 import { storageService, isSupabaseConfigured } from './services/storage';
 import { AuthState, UserRole } from './types';
 import { Admin } from './pages/admin/Admin';
+import { PaymentWidgetDemo } from './PaymentWidgetDemo';
 
 class AdminErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -116,6 +117,7 @@ const App: React.FC = () => {
           <Route path="/track/:id" element={<Track />} />
           <Route path="/track" element={<Track />} />
           <Route path="/ship" element={<Ship />} />
+          <Route path="/payment-demo" element={<PaymentWidgetDemo />} />
           <Route
             path="/admin"
             element={

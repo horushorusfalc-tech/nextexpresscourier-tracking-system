@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAdmin } from '../AdminContext';
-import { Shipment, ShipmentStatus } from '../../../types';
+import { Shipment, ShipmentStatus, PaymentStatus } from '../../../types';
 
 interface ShipmentRowProps {
   shipment: Shipment;
@@ -31,6 +31,11 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({ shipment }) => {
     dispatch({ type: 'SET_ACTIVE_MODAL', payload: 'cancel' });
   };
 
+  const handleVerifyPayment = () => {
+    dispatch({ type: 'SET_SELECTED_SHIPMENT', payload: shipment });
+    dispatch({ type: 'SET_ACTIVE_MODAL', payload: 'payment' });
+  };
+
   const getStatusColor = (status: ShipmentStatus) => {
     switch (status) {
       case ShipmentStatus.DELIVERED: return 'bg-green-500';
@@ -41,6 +46,21 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({ shipment }) => {
     }
   };
 
+  const getPaymentStatusBadge = () => {
+    if (!shipment.customsCharge) return null;
+    
+    switch (shipment.paymentStatus) {
+      case PaymentStatus.VERIFIED:
+        return <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-[8px] font-black uppercase tracking-widest border border-green-200">✓ Paid</span>;
+      case PaymentStatus.PENDING:
+        return <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-[8px] font-black uppercase tracking-widest border border-amber-200">⏳ Awaiting</span>;
+      case PaymentStatus.FAILED:
+        return <span className="px-3 py-1 bg-rose-100 text-rose-800 rounded-full text-[8px] font-black uppercase tracking-widest border border-rose-200">✗ Failed</span>;
+      default:
+        return null;
+    }
+  };
+
   return (
     <tr className="hover:bg-slate-50 transition-colors group">
       <td className="px-8 py-6">
@@ -48,13 +68,26 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({ shipment }) => {
         <p className="text-[11px] font-bold text-slate-400 mt-1">{shipment.recipientName}</p>
       </td>
       <td className="px-8 py-6">
-        <div className="flex items-center gap-3 text-[11px] font-bold text-slate-600">
-          <span className="text-slate-400 uppercase">{shipment.origin}</span>
-          <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-          </svg>
-          <span className="text-slate-950 uppercase">{shipment.destination}</span>
-        </div>
+        {shipment.customsCharge && (
+          <div className="mt-2 text-[10px] font-bold text-amber-700">💰 ${shipment.customsCharge.toFixed(2)}</div>
+        )}
+      </td>
+      <td className="px-8 py-6">
+        {getPaymentStatusBadge() || (
+          <div className="flex items-center gap-3">
+            <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(shipment.currentStatus)}`}></div>
+            <span className="text-xs font-black text-slate-950 uppercase tracking-tight">{shipment.currentStatus}</span>
+          </div>
+        )}
+        {shipment.paymentStatus !== PaymentStatus.NONE && !getPaymentStatusBadge() && (
+          <div className="flex items-center gap-3 mt-2">
+            <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(shipment.currentStatus)}`}></div>
+            <span className="text-xs font-black text-slate-950 uppercase tracking-tight">{shipment.currentStatus}</span>
+          </div>
+        )}
+      </td>
+      <td className="px-8 py-6">
+        <span className="text-slate-950 uppercase">{shipment.destination}</span>
         <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-tighter">
           Est: {shipment.estimatedDelivery ? new Date(shipment.estimatedDelivery).toLocaleDateString() : 'TBD'}
         </p>
@@ -72,6 +105,17 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({ shipment }) => {
       </td>
       <td className="px-8 py-6 text-right">
         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {shipment.paymentStatus === PaymentStatus.PENDING && (
+            <button
+              onClick={handleVerifyPayment}
+              className="p-2.5 hover:bg-green-50 rounded-full text-green-600 transition-colors"
+              title="Verify Payment"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          )}
           <button
             onClick={handleStatusUpdate}
             className="p-2.5 hover:bg-amber-50 rounded-full text-amber-600 transition-colors"

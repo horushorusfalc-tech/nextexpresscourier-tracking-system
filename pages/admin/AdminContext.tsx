@@ -4,7 +4,7 @@ import { Shipment, ShipmentStatus, EmailTemplate } from '../../types';
 
 type NotificationType = 'success' | 'info' | 'error';
 type ViewMode = 'LEDGER' | 'PULSE';
-type ModalType = 'registry' | 'protocol' | 'audit' | 'cancel' | 'templates' | null;
+type ModalType = 'registry' | 'protocol' | 'audit' | 'cancel' | 'templates' | 'payment' | null;
 
 interface AdminState {
   shipments: Shipment[];
@@ -13,6 +13,7 @@ interface AdminState {
   error: string | null;
   selectedShipment: Shipment | null;
   activeModal: ModalType;
+  showSettings: boolean;
   searchQuery: string;
   statusFilter: ShipmentStatus | null;
   viewMode: ViewMode;
@@ -38,6 +39,7 @@ type AdminAction =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_SELECTED_SHIPMENT'; payload: Shipment | null }
   | { type: 'SET_ACTIVE_MODAL'; payload: ModalType }
+  | { type: 'SET_SHOW_SETTINGS'; payload: boolean }
   | { type: 'SET_SEARCH_QUERY'; payload: string }
   | { type: 'SET_STATUS_FILTER'; payload: ShipmentStatus | null }
   | { type: 'SET_VIEW_MODE'; payload: ViewMode }
@@ -56,7 +58,8 @@ const initialState: AdminState = {
   loading: true,
   error: null,
   selectedShipment: null,
-  activeModal: null,
+  ahowSettings: false,
+  sctiveModal: null,
   searchQuery: '',
   statusFilter: null,
   viewMode: 'LEDGER',
@@ -93,6 +96,8 @@ function adminReducer(state: AdminState, action: AdminAction): AdminState {
       return { ...state, selectedShipment: action.payload };
     case 'SET_ACTIVE_MODAL':
       return { ...state, activeModal: action.payload };
+    case 'SET_SHOW_SETTINGS':
+      return { ...state, showSettings: action.payload };
     case 'SET_SEARCH_QUERY':
       return { ...state, searchQuery: action.payload };
     case 'SET_STATUS_FILTER':

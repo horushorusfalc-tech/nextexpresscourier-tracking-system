@@ -11,6 +11,8 @@ import { ProtocolCommandModal } from './components/modals/ProtocolCommandModal';
 import { AuditTrailModal } from './components/modals/AuditTrailModal';
 import { CancelModal } from './components/modals/CancelModal';
 import { TemplateManager } from './components/modals/TemplateManager';
+import { PaymentVerificationModal } from './components/modals/PaymentVerificationModal';
+import { SettingsModal } from './components/modals/SettingsModal';
 
 const AdminContent: React.FC<{ role: UserRole }> = ({ role }) => {
   const { state, dispatch } = useAdmin();
@@ -94,11 +96,25 @@ const AdminContent: React.FC<{ role: UserRole }> = ({ role }) => {
     description: string;
     sendEmail: boolean;
     selectedTemplateId: string;
+    customsCharge?: number;
   }, e: React.FormEvent) => {
     e.preventDefault();
     if (!state.selectedShipment) return;
     dispatch({ type: 'SET_IS_SUBMITTING', payload: true });
     try {
+      // If customs charge is provided and status is CUSTOMS_HOLD, update shipment with payment info
+      if (form.customsCharge && form.status === ShipmentStatus.CUSTOMS_HOLD) {
+        const { error } = await supabase
+          .from('shipments')
+          .update({
+            customs_charge: form.customsCharge,
+            payment_status: 'pending'
+          })
+          .eq('id', state.selectedShipment.id);
+        
+        if (error) throw error;
+      }
+
       const selectedTemplate = state.templates.find(t => t.id === form.selectedTemplateId);
       await storageService.addTrackingEvent(state.selectedShipment.id, {
         status: form.status,
@@ -224,6 +240,21 @@ const AdminContent: React.FC<{ role: UserRole }> = ({ role }) => {
         )}
         {state.activeModal === 'templates' && (
           <TemplateManager onSave={handleSaveTemplate} onDelete={deleteTemplate} onClose={closeModal} />
+        )}
+        {state.activeModal === 'payment' && (
+          <PaymentVerificationModal 
+            onSave={async (notes?: string) => {
+              showNotification('Payment verified successfully.', 'success');
+              refreshData();
+            }}
+            onClose={closeModal} 
+          />
+        )}
+        {state.showSettings && (
+          <SettingsModal 
+            onClose={() => dispatch({ type: 'SET_SHOW_SETTINGS', payload: false })}
+            onSaved={() => showNotification('Payment settings updated.', 'success')}
+          />
         )}
 
         {state.notification && (

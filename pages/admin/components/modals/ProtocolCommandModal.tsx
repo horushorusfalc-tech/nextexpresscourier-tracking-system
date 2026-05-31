@@ -11,6 +11,7 @@ interface ProtocolCommandModalProps {
     description: string;
     sendEmail: boolean;
     selectedTemplateId: string;
+    customsCharge?: number;
   }, e: React.FormEvent) => void;
   onClose: () => void;
 }
@@ -19,16 +20,18 @@ export const ProtocolCommandModal: React.FC<ProtocolCommandModalProps> = ({ onSa
   const { state, dispatch } = useAdmin();
   const firstRef = useRef<HTMLSelectElement>(null);
   const [localStatusForm, setLocalStatusForm] = useState(state.statusForm);
+  const [customsCharge, setCustomsCharge] = useState<string>('');
 
   useEffect(() => {
     setLocalStatusForm(state.statusForm);
+    setCustomsCharge(state.selectedShipment?.customsCharge?.toString() || '');
     firstRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, state.statusForm]);
+  }, [onClose, state.statusForm, state.selectedShipment]);
 
   const handleLocalChange = (payload: Partial<typeof localStatusForm>) => {
     setLocalStatusForm((prev) => ({ ...prev, ...payload }));
@@ -36,9 +39,15 @@ export const ProtocolCommandModal: React.FC<ProtocolCommandModalProps> = ({ onSa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const formData = { ...localStatusForm };
+    if (localStatusForm.status === ShipmentStatus.CUSTOMS_HOLD && customsCharge) {
+      Object.assign(formData, { customsCharge: parseFloat(customsCharge) });
+    }
     dispatch({ type: 'SET_STATUS_FORM', payload: localStatusForm });
-    onSave(localStatusForm, e);
+    onSave(formData, e);
   };
+
+  const isCustomsStatus = localStatusForm.status === ShipmentStatus.CUSTOMS_HOLD;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="protocol-title">
@@ -74,6 +83,22 @@ export const ProtocolCommandModal: React.FC<ProtocolCommandModalProps> = ({ onSa
             <label htmlFor="protocol-description" className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Description</label>
             <textarea id="protocol-description" value={localStatusForm.description} onChange={e => handleLocalChange({ description: e.target.value })} rows={4} minLength={5} required placeholder="Enter status update details..." className="w-full px-6 py-4 rounded-[3rem] border-2 border-slate-200 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold resize-none transition-all" />
           </div>
+          {isCustomsStatus && (
+            <div>
+              <label htmlFor="protocol-customs-charge" className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">💰 Customs Charge (USD)</label>
+              <input 
+                id="protocol-customs-charge" 
+                type="number" 
+                step="0.01" 
+                min="0" 
+                value={customsCharge} 
+                onChange={e => setCustomsCharge(e.target.value)} 
+                placeholder="e.g. 50.00"
+                className="w-full px-6 py-4 rounded-[3rem] border-2 border-amber-300 focus:border-amber-600 focus:ring-0 outline-none text-sm font-bold transition-all bg-amber-50" 
+              />
+              <p className="text-[10px] text-amber-700 mt-2">Enter the total customs charge amount the customer must pay.</p>
+            </div>
+          )}
           <div className="flex items-center gap-3 pt-2">
             <input id="protocol-send-email" type="checkbox" checked={localStatusForm.sendEmail} onChange={e => handleLocalChange({ sendEmail: e.target.checked })} className="w-5 h-5 rounded-full border-2 border-slate-300 text-amber-600 focus:ring-amber-600" />
             <label htmlFor="protocol-send-email" className="text-sm font-black uppercase tracking-wider text-slate-700">Send Email Notification</label>

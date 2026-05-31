@@ -18,6 +18,13 @@ export enum UserRole {
   STAFF = 'STAFF'
 }
 
+export enum PaymentStatus {
+  NONE = 'none',
+  PENDING = 'pending',
+  VERIFIED = 'verified',
+  FAILED = 'failed'
+}
+
 export interface TrackingEvent {
   id: string;
   timestamp: string;
@@ -46,11 +53,35 @@ export interface EmailTemplate {
   createdAt: string;
 }
 
+export interface PaymentLog {
+  id: string;
+  shipmentId: string;
+  amount: number;
+  status: 'claimed' | 'verified' | 'failed';
+  claimedAt: string;
+  verifiedAt?: string;
+  verifiedByUserId?: string;
+  notes?: string;
+  transactionHash?: string;
+}
+
+export interface AppSettings {
+  id: string;
+  key: string;
+  value: string;
+  description?: string;
+}
+
 export interface Shipment {
   id: string;
   trackingNumber: string;
   senderName: string;
   senderAddress: string;
+  customsCharge?: number;
+  paymentStatus?: PaymentStatus;
+  paymentVerifiedAt?: string;
+  paymentNotes?: string;
+  paymentLogs?: PaymentLog[];
   senderEmail?: string;
   recipientName: string;
   recipientEmail: string;

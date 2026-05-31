@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { Shipment, ShipmentStatus, TrackingEvent, UserRole, EmailLog, EmailTemplate } from '../types';
+import { Shipment, ShipmentStatus, TrackingEvent, UserRole, EmailLog, EmailTemplate, PaymentStatus, PaymentLog, AppSettings } from '../types';
 import { shipmentSchema, trackingEventSchema, emailTemplateSchema, formatZodError, sanitize, ValidationError } from './validations';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? '';
@@ -30,6 +30,7 @@ function normalizeRole(raw: unknown): UserRole {
 const mapShipment = (dbData: any): Shipment => {
   const rawEvents = dbData.tracking_events || [];
   const rawLogs = dbData.email_logs || [];
+  const rawPaymentLogs = dbData.payment_logs || [];
   
   return {
     id: dbData.id,
@@ -52,6 +53,10 @@ const mapShipment = (dbData: any): Shipment => {
     packagingType: dbData.packaging_type,
     cancellationReason: dbData.cancellation_reason,
     createdAt: dbData.created_at,
+    customsCharge: dbData.customs_charge ?? undefined,
+    paymentStatus: (dbData.payment_status as PaymentStatus) ?? PaymentStatus.NONE,
+    paymentVerifiedAt: dbData.payment_verified_at ?? undefined,
+    paymentNotes: dbData.payment_notes ?? undefined,
     events: rawEvents.map((e: any) => ({
       id: e.id,
       timestamp: e.timestamp,
@@ -68,7 +73,18 @@ const mapShipment = (dbData: any): Shipment => {
       body: l.body,
       recipient: l.recipient,
       status: l.status
-    })).sort((a: any, b: any) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
+    })).sort((a: any, b: any) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()),
+    paymentLogs: rawPaymentLogs.map((p: any) => ({
+      id: p.id,
+      shipmentId: p.shipment_id,
+      amount: p.amount,
+      status: p.status,
+      claimedAt: p.claimed_at,
+      verifiedAt: p.verified_at,
+      verifiedByUserId: p.verified_by_user_id,
+      notes: p.notes,
+      transactionHash: p.transaction_hash
+    })).sort((a: any, b: any) => new Date(b.claimedAt).getTime() - new Date(a.claimedAt).getTime())
   };
 };
 
@@ -513,5 +529,247 @@ support@nextexpresscourier.com
     const prefix = 'NEC';
     const random = Math.floor(10000000 + Math.random() * 90000000);
     return `${prefix}${random}`;
+  },
+
+  // ============================================
+  // PAYMENT SYSTEM METHODS
+  // ============================================
+
+  getSettings: async (): Promise<Record<string, string>> => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('key, value');
+      
+      if (error) throw error;
+      
+      const settings: Record<string, string> = {};
+      (data || []).forEach(item => {
+        settings[item.key] = item.value;
+      });
+      return settings;
+    } catch (err) {
+      console.warn("Failed to fetch settings:", err);
+      return {};
+    }
+  },
+
+  getSetting: async (key: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', key)
+        .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Row not found
+        throw error;
+      }
+      
+      return data?.value ?? null;
+    } catch (err) {
+      console.warn(`Failed to fetch setting ${key}:`, err);
+      return null;
+    }
+  },
+
+  updateSetting: async (key: string, value: string, description?: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('settings')
+        .upsert({
+          key,
+          value,
+          description,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'key' });
+      
+      if (error) throw error;
+    } catch (err) {
+      console.error(`Failed to update setting ${key}:`, err);
+      throw err;
+    }
+  },
+
+  claimPayment: async (shipmentId: string, amount: number): Promise<PaymentLog> => {
+    try {
+      // Create payment log entry
+      const { data, error } = await supabase
+        .from('payment_logs')
+        .insert({
+          shipment_id: shipmentId,
+          amount,
+          status: 'claimed',
+          claimed_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update shipment payment status
+      await supabase
+        .from('shipments')
+        .update({ payment_status: PaymentStatus.PENDING })
+        .eq('id', shipmentId);
+
+      return {
+        id: data.id,
+        shipmentId: data.shipment_id,
+        amount: data.amount,
+        status: data.status,
+        claimedAt: data.claimed_at,
+        verifiedAt: data.verified_at,
+        verifiedByUserId: data.verified_by_user_id,
+        notes: data.notes,
+        transactionHash: data.transaction_hash
+      };
+    } catch (err) {
+      console.error("Failed to claim payment:", err);
+      throw err;
+    }
+  },
+
+  verifyPayment: async (shipmentId: string, notes?: string, autoAdvanceStatus?: boolean): Promise<void> => {
+    try {
+      const { data: session } = await (supabase.auth as any).getSession();
+      const userId = session?.user?.id;
+
+      // Update shipment payment status
+      const updatePayload: any = {
+        payment_status: PaymentStatus.VERIFIED,
+        payment_verified_at: new Date().toISOString(),
+        payment_notes: notes || null
+      };
+
+      const { error: shipError } = await supabase
+        .from('shipments')
+        .update(updatePayload)
+        .eq('id', shipmentId);
+
+      if (shipError) throw shipError;
+
+      // Update payment log entry
+      const { error: logError } = await supabase
+        .from('payment_logs')
+        .update({
+          status: 'verified',
+          verified_at: new Date().toISOString(),
+          verified_by_user_id: userId,
+          notes: notes || null
+        })
+        .eq('shipment_id', shipmentId)
+        .eq('status', 'claimed')
+        .order('claimed_at', { ascending: false })
+        .limit(1);
+
+      if (logError) throw logError;
+
+      // Optionally auto-advance shipment status
+      if (autoAdvanceStatus) {
+        const { data: shipmentData } = await supabase
+          .from('shipments')
+          .select('current_status')
+          .eq('id', shipmentId)
+          .single();
+
+        if (shipmentData && shipmentData.current_status === ShipmentStatus.CUSTOMS_HOLD) {
+          await supabase
+            .from('shipments')
+            .update({ current_status: ShipmentStatus.CUSTOMS_CLEARED })
+            .eq('id', shipmentId);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to verify payment:", err);
+      throw err;
+    }
+  },
+
+  getPaymentLogs: async (shipmentId?: string): Promise<PaymentLog[]> => {
+    try {
+      let query = supabase.from('payment_logs').select('*');
+      
+      if (shipmentId) {
+        query = query.eq('shipment_id', shipmentId);
+      }
+
+      const { data, error } = await query.order('claimed_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map(p => ({
+        id: p.id,
+        shipmentId: p.shipment_id,
+        amount: p.amount,
+        status: p.status,
+        claimedAt: p.claimed_at,
+        verifiedAt: p.verified_at,
+        verifiedByUserId: p.verified_by_user_id,
+        notes: p.notes,
+        transactionHash: p.transaction_hash
+      }));
+    } catch (err) {
+      console.error("Failed to fetch payment logs:", err);
+      throw err;
+    }
+  },
+
+  verifyPaymentWithBlockchain: async (
+    shipmentId: string,
+    transactionHash: string,
+    autoVerify: boolean = true
+  ): Promise<PaymentLog | null> => {
+    try {
+      // Update payment log with transaction hash
+      const { data, error } = await supabase
+        .from('payment_logs')
+        .update({
+          transaction_hash: transactionHash,
+          blockchain_verified_at: new Date().toISOString(),
+          ...(autoVerify && {
+            status: 'verified',
+            verified_at: new Date().toISOString()
+          })
+        })
+        .eq('shipment_id', shipmentId)
+        .eq('status', 'claimed')
+        .order('claimed_at', { ascending: false })
+        .limit(1)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // If auto-verify enabled, also update shipment status
+      if (autoVerify && data) {
+        await supabase
+          .from('shipments')
+          .update({
+            payment_status: PaymentStatus.VERIFIED,
+            payment_verified_at: new Date().toISOString(),
+            payment_notes: `Auto-verified via blockchain. TX: ${transactionHash}`
+          })
+          .eq('id', shipmentId);
+      }
+
+      return data
+        ? {
+            id: data.id,
+            shipmentId: data.shipment_id,
+            amount: data.amount,
+            status: data.status,
+            claimedAt: data.claimed_at,
+            verifiedAt: data.verified_at,
+            verifiedByUserId: data.verified_by_user_id,
+            notes: data.notes,
+            transactionHash: data.transaction_hash
+          }
+        : null;
+    } catch (err) {
+      console.error('Failed to verify payment with blockchain:', err);
+      throw err;
+    }
   }
 };

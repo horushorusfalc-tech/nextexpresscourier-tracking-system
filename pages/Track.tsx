@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { storageService } from '../services/storage';
 import { Shipment, ShipmentStatus } from '../types';
+import { PaymentWidget } from '../components/PaymentWidget';
 
 export const Track: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -409,6 +410,11 @@ export const Track: React.FC = () => {
                     <p className="text-xl font-black text-slate-950 mb-3">{shipment.recipientName}</p>
                     <p className="text-sm text-slate-600 leading-relaxed font-medium uppercase tracking-tight">{shipment.recipientAddress}</p>
                   </section>
+
+                  {/* Payment Widget - Show when customs charge exists */}
+                  {shipment.customsCharge && (
+                    <PaymentWidget shipment={shipment} onPaymentClaimed={() => performLookup(shipment.trackingNumber)} />
+                  )}
                 </div>
 
                 {/* Right Column - Timeline */}
