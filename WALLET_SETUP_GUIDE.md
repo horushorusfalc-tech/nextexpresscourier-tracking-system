@@ -22,7 +22,7 @@ Navigate to: `http://localhost:3000/#/admin`
 
 **Example Demo Credentials:**
 ```
-Email: operations@nextexpress.com
+Email: nextexpresscourie@zohomail.com
 Password: [Your Supabase password]
 ```
 
@@ -84,7 +84,7 @@ Click the 💰 icon to open the **Payment Settings Modal**
   Please send payment to the wallet address above.
   Include your tracking number in the memo field if possible.
   Payment usually confirms within 1-2 hours.
-  For assistance, contact support@nextexpress.com
+  For assistance, contact nextexpresscourie@zohomail.com
   ```
 
 ### **Step 5: Save Settings**

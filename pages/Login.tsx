@@ -91,7 +91,7 @@ export const Login: React.FC = () => {
             <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-2">Work Email</label>
             <input
               type="email"
-              placeholder="operations@nextexpress.com"
+              placeholder="you@company.com"
               className="w-full px-8 py-5 rounded-[3rem] border-2 border-slate-200 bg-white text-slate-950 text-sm font-bold focus:border-amber-600 focus:ring-0 outline-none transition-all placeholder:text-slate-300 shadow-[6px_6px_0_0_rgba(15,23,42,0.05)]"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

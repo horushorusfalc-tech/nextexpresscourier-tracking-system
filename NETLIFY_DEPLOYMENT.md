@@ -30,7 +30,7 @@ After deployment starts:
 3. Click **Edit variables** and add:
    ```
    VITE_SUPABASE_URL = https://lmmxwprjoljqsfxzsgfn.supabase.co
-   VITE_SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtbXh3cHJqb2xqcXNmeHpzZ2ZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNTgxMDgsImV4cCI6MjA5NDkzNDEwOH0.e3SjUu_4F7I953h27oV8FqhVe0eCVgvK9lGB5inqU9Q
+   VITE_SUPABASE_ANON_KEY = your_supabase_anon_key_here
    ```
 4. Click **Save** and the site will redeploy
 

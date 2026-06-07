@@ -22,7 +22,8 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 **Current (INSECURE)**:
 ```typescript
-'process.env.RESEND_API_KEY': JSON.stringify(env.RESEND_API_KEY || 're_SMf2oHpR_8H9JTSQLiYK7XJh9ERwAUBkT')
+// Hardcoded API key removed from docs for security
+// 'process.env.RESEND_API_KEY': JSON.stringify(env.RESEND_API_KEY || '<REDACTED>')
 ```
 
 **Fix**:

@@ -132,7 +132,7 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
     const subject = `Shipment registered: ${trackingNumber}`;
-    const from = Deno.env.get("RESEND_FROM") ?? "NextExpress <updates@nextexpresscourier.com>";
+    const from = Deno.env.get("RESEND_FROM") ?? "NextExpress <nextexpresscourie@zohomail.com>";
 
     const sendOne = async (to: string, toName: string) => {
       const html = buildEmailHtml(toName, trackingNumber, origin, destination, trackUrl);

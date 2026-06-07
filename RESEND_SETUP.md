@@ -58,7 +58,9 @@ Once DNS is updated:
 
 ### Step 4: Update send-email Function
 
-The code already sends from `updates@nextexpresscourier.com`, so no changes needed.
+The function default sender has been set to `nextexpresscourie@zohomail.com`. To change the outgoing "from" address, set the `RESEND_FROM` secret in Supabase to a different value (for example `NextExpress <updates@nextexpresscourier.com>` if you verify your domain).
+
+For support or general inquiries, contact: nextexpresscourie@zohomail.com
 
 ---
 

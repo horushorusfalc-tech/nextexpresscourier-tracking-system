@@ -11,16 +11,23 @@ if (!isSupabaseConfigured) {
   console.warn('Supabase not configured: set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local');
 }
 
-export const supabase = createClient(
-  SUPABASE_URL || 'https://placeholder.supabase.co',
-  SUPABASE_ANON_KEY || 'placeholder',
-  {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true
-  }
-});
+// Ensure a single Supabase client instance in the browser (avoid multiple GoTrueClient instances)
+const _globalAny: any = (typeof window !== 'undefined') ? window : globalThis as any;
+if (!_globalAny.__NEXTEXP_SUPABASE_CLIENT) {
+  _globalAny.__NEXTEXP_SUPABASE_CLIENT = createClient(
+    SUPABASE_URL || 'https://placeholder.supabase.co',
+    SUPABASE_ANON_KEY || 'placeholder',
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    }
+  );
+}
+
+export const supabase = _globalAny.__NEXTEXP_SUPABASE_CLIENT;
 
 function normalizeRole(raw: unknown): UserRole {
   if (raw === 'ADMIN' || (typeof raw === 'string' && raw.toUpperCase() === 'ADMIN')) return UserRole.ADMIN;
@@ -298,7 +305,7 @@ This is an automated confirmation. Please keep your tracking number safe for fut
 
 Best regards,
 NextExpress Courier Services
-support@nextexpresscourier.com
+nextexpresscourie@zohomail.com
 +61 488 293 104 (Australia)
 +971 50 492 8173 (Dubai)
 +44 7700 900 482 (UK)`;

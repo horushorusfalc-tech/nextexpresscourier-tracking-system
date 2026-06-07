@@ -50,7 +50,7 @@ shipment.currentStatus === "Held in Customs"
 
 ```
 1. Go to http://localhost:3000/#/admin
-2. Email: operations@nextexpress.com (or your admin email)
+2. Email: nextexpresscourie@zohomail.com (or your admin email)
 3. Password: [Your Supabase password]
 4. Click "Authorize Session"
 ```

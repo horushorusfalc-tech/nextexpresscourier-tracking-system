@@ -65,7 +65,7 @@ serve(async (req) => {
       console.error("RESEND_API_KEY is not set in Supabase secrets");
       return buildResponse(req, { success: false, error: "Email service not configured" }, 500);
     }
-    const RESEND_FROM = Deno.env.get("RESEND_FROM") ?? "NextExpress <updates@nextexpresscourier.com>";
+    const RESEND_FROM = Deno.env.get("RESEND_FROM") ?? "NextExpress <nextexpresscourie@zohomail.com>";
 
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },

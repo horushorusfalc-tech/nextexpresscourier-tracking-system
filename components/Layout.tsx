@@ -123,7 +123,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, isAdmin, onLogout }) =
                 <div className="space-y-6">
                   <div className="flex flex-col">
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Email Support</span>
-                    <span className="text-[13px] text-slate-950 font-black break-all">support@nextexpresscourier.com</span>
+                    <span className="text-[13px] text-slate-950 font-black break-all">nextexpresscourie@zohomail.com</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Australia HQ</span>
@@ -138,6 +138,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, isAdmin, onLogout }) =
                   <div className="flex flex-col">
                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">United Kingdom HQ</span>
                     <span className="text-[14px] text-slate-950 font-black">+44 7700 900 482</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">US Hub</span>
+                    <span className="text-[14px] text-slate-950 font-black">+1 720 538 4396</span>
                   </div>
                 </div>
                 <div className="space-y-6">
