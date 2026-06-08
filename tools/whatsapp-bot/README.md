@@ -1,3 +1,17 @@
+5. Optional: If you deploy a verification endpoint (Netlify function), add `VERIFICATION_WEBHOOK` to `.env` with the URL of the Netlify function. The bot will POST `{ trackingNumber, transactionHash }` to the webhook when a user sends `PAID <txhash>`.
+
+Netlify webhook (recommended setup)
+- Create a Netlify Function (example `netlify/functions/verify-payment.js`) that accepts POST `{ trackingNumber, transactionHash }`.
+- Configure a secure internal verification endpoint (Supabase Edge Function or your own) and set `VERIFY_ENDPOINT` and `VERIFY_KEY` as environment variables in Netlify. The Netlify function forwards the request to that secure endpoint.
+
+Flow when user chats on WhatsApp
+1. User sends message with tracking number (e.g. `NEC83655218`).
+2. Bot looks up shipment via Supabase public RPC and replies with status, ETA, and customs info.
+3. If shipment is `Held in Customs`, bot includes `WALLET_ADDRESS` and sends a QR image (if configured).
+4. User pays and replies in WhatsApp: `PAID <txhash>` (optionally including the tracking number).
+5. If `VERIFICATION_WEBHOOK` is configured, the bot POSTs `{ trackingNumber, transactionHash }` to that webhook.
+6. The webhook forwards the request to your secure verification endpoint (configured via `VERIFY_ENDPOINT`/`VERIFY_KEY` in Netlify). That endpoint runs your blockchain verification and updates Supabase (marks payment verified).
+7. The webhook returns success; you can configure the verification endpoint to notify the user by WhatsApp or email upon completion.
 WhatsApp Bot Prototype (Read‑Only)
 =================================
 

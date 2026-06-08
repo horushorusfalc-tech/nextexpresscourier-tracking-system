@@ -21,6 +21,7 @@ require('dotenv').config();
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const WALLET_ADDRESS = process.env.WALLET_ADDRESS || '';
+const VERIFICATION_WEBHOOK = process.env.VERIFICATION_WEBHOOK || '';
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn('Warning: SUPABASE_URL or SUPABASE_ANON_KEY missing. Add them to .env to enable shipment lookups.');
@@ -49,6 +50,9 @@ const matchTracking = (text) => {
   if (m) return `NEC${m[1]}`.toUpperCase();
   return null;
 };
+
+// Map chatId -> last tracking looked up in this chat (simple in-memory cache)
+const lastTrackingByChat = new Map();
 
 const getShipment = async (tracking) => {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error('Supabase credentials missing');
@@ -80,10 +84,27 @@ client.on('message', async msg => {
     const text = (msg.body || '').trim();
     const chat = await msg.getChat();
 
-    // Check for PAID <txhash> pattern (we acknowledge only in read-only prototype)
-    const paidMatch = text.match(/^paid\s+([0-9a-fx]+)$/i);
+    // Check for PAID <txhash> pattern
+    const paidMatch = text.match(/^paid\s+([0-9a-fx]+)(?:\s+(NEC[-\s]?\d{5,9}))?$/i);
     if (paidMatch) {
-      await chat.sendMessage('Thanks — we received your notice. This prototype is read-only; an admin will verify your payment and follow up.');
+      const tx = paidMatch[1];
+      const explicitTracking = paidMatch[2] ? matchTracking(paidMatch[2]) : null;
+      const chatId = chat.id._serialized || (chat.id && chat.id.user) || null;
+      const inferredTracking = explicitTracking || (chatId ? lastTrackingByChat.get(chatId) : null);
+
+      if (VERIFICATION_WEBHOOK && inferredTracking) {
+        // Notify webhook to perform verification
+        try {
+          await axios.post(VERIFICATION_WEBHOOK, { trackingNumber: inferredTracking, transactionHash: tx }, { headers: { 'Content-Type': 'application/json' } });
+          await chat.sendMessage('Thanks — payment notice sent. Verification is in progress; you will receive a confirmation when verified.');
+        } catch (err) {
+          console.error('Webhook notify failed:', err?.response?.data || err.message || err);
+          await chat.sendMessage('Failed to notify verification service. Please try again later.');
+        }
+      } else {
+        await chat.sendMessage('Thanks — we received your notice. This prototype is read-only; an admin will verify your payment and follow up.');
+      }
+
       return;
     }
 
@@ -100,6 +121,12 @@ client.on('message', async msg => {
       await chat.sendMessage(`No shipment found for ${tracking}. Please confirm the tracking number.`);
       return;
     }
+
+    // store last lookup for this chat so PAID messages can be linked
+    try {
+      const chatId = chat.id._serialized || (chat.id && chat.id.user) || null;
+      if (chatId) lastTrackingByChat.set(chatId, tracking);
+    } catch (e) {}
 
     const latestEvent = (shipment.tracking_events && shipment.tracking_events[0]) || {};
     const customs = shipment.customs_charge ? `$${Number(shipment.customs_charge).toFixed(2)}` : 'Not specified';
