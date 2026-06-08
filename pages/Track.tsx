@@ -411,10 +411,10 @@ export const Track: React.FC = () => {
                     <p className="text-sm text-slate-600 leading-relaxed font-medium uppercase tracking-tight">{shipment.recipientAddress}</p>
                   </section>
 
-                  {/* Payment Widget - Show when customs charge exists */}
-                  {shipment.customsCharge && (
-                    <PaymentWidget shipment={shipment} onPaymentClaimed={() => performLookup(shipment.trackingNumber)} />
-                  )}
+                  {/* Payment Widget - Show when customs charge exists or shipment is held in customs */}
+                  {(shipment.customsCharge || shipment.currentStatus === ShipmentStatus.CUSTOMS_HOLD) && (
+                        <PaymentWidget shipment={shipment} onPaymentClaimed={() => performLookup(shipment.trackingNumber)} />
+                      )}
                 </div>
 
                 {/* Right Column - Timeline */}

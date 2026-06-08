@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as QRCodeLib from 'qrcode.react';
-import { Shipment, PaymentStatus } from '../types';
+import { Shipment, PaymentStatus, TrackingEvent } from '../types';
 import { storageService } from '../services/storage';
 import { verifyTransaction, VerificationResult } from '../services/blockchainVerification';
 
@@ -45,6 +45,30 @@ export const PaymentWidget: React.FC<PaymentWidgetProps> = ({ shipment, onPaymen
 
   const effectiveWalletAddress = walletAddress || secondaryWalletAddress;
 
+  // Try to infer customs charge from recent tracking events when admin omitted it
+  const parseChargeFromEvents = (events: TrackingEvent[] | undefined): number | null => {
+    if (!events || events.length === 0) return null;
+    for (const ev of events) {
+      const text = (ev.description || '') as string;
+      const usdMatch = text.match(/(?:USD|\$)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
+      if (usdMatch && usdMatch[1]) {
+        const cleaned = usdMatch[1].replace(/,/g, '');
+        const val = parseFloat(cleaned);
+        if (!isNaN(val) && val > 0) return val;
+      }
+      const altMatch = text.match(/([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:dollars|usd)/i);
+      if (altMatch && altMatch[1]) {
+        const cleaned = altMatch[1].replace(/,/g, '');
+        const val = parseFloat(cleaned);
+        if (!isNaN(val) && val > 0) return val;
+      }
+    }
+    return null;
+  };
+
+  const inferredCharge = parseChargeFromEvents(shipment.events);
+  const displayCharge = shipment.customsCharge ?? inferredCharge;
+
   const handleCopyAddress = async () => {
     if (!effectiveWalletAddress) return;
     try {
@@ -57,7 +81,7 @@ export const PaymentWidget: React.FC<PaymentWidgetProps> = ({ shipment, onPaymen
   const handleClaimPayment = async () => {
     setIsSubmitting(true);
     try {
-      await storageService.claimPayment(shipment.id, shipment.customsCharge || 0);
+      await storageService.claimPayment(shipment.id, displayCharge || 0);
       setClaimedPayment(true);
       if (onPaymentClaimed) onPaymentClaimed();
     } catch (err) {
@@ -117,8 +141,8 @@ export const PaymentWidget: React.FC<PaymentWidgetProps> = ({ shipment, onPaymen
     }
   };
 
-  // Only show payment widget if shipment has a customs charge
-  if (!shipment.customsCharge || shipment.paymentStatus === PaymentStatus.VERIFIED) {
+  // Only show payment widget if we have a customs charge (stored or inferred)
+  if (!displayCharge || shipment.paymentStatus === PaymentStatus.VERIFIED) {
     return null;
   }
 
@@ -165,7 +189,7 @@ export const PaymentWidget: React.FC<PaymentWidgetProps> = ({ shipment, onPaymen
           {/* Amount */}
           <div className="bg-white p-4 rounded-2xl border-2 border-amber-300">
             <p className="text-[10px] font-bold uppercase text-amber-700 tracking-wider mb-1">Amount Due</p>
-            <p className="text-3xl font-black text-amber-600">${shipment.customsCharge.toFixed(2)}</p>
+            <p className="text-3xl font-black text-amber-600">${displayCharge.toFixed(2)}</p>
             <p className="text-[10px] text-slate-500 mt-2">USD</p>
           </div>
 

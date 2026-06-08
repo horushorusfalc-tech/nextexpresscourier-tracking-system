@@ -235,7 +235,7 @@ const getShipmentContext = async (
 // ============================================================================
 
 const getSystemInstructions = (shipment?: ShipmentContext): string => {
-  instructions = `You are NextExpress Courier's AI support assistant. You help customers with:
+  let instructions = `You are NextExpress Courier's AI support assistant. You help customers with:
 - Tracking shipments
 - Website payments: Bitcoin (BTC) only (customers should include tracking number in the transaction memo)
 - Customs and duty questions
