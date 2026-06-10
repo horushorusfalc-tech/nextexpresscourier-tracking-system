@@ -47,7 +47,7 @@ export const ProtocolCommandModal: React.FC<ProtocolCommandModalProps> = ({ onSa
     onSave(formData, e);
   };
 
-  const isCustomsStatus = localStatusForm.status === ShipmentStatus.CUSTOMS_HOLD;
+  const isCustomsStatus = localStatusForm.status === ShipmentStatus.CUSTOMS_HOLD || state.selectedShipment?.customsCharge !== undefined;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="protocol-title">
