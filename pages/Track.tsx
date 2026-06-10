@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { storageService } from '../services/storage';
-import { Shipment, ShipmentStatus } from '../types';
+import { Shipment, ShipmentStatus, PaymentStatus } from '../types';
 import { PaymentWidget } from '../components/PaymentWidget';
 
 export const Track: React.FC = () => {
@@ -28,6 +28,23 @@ export const Track: React.FC = () => {
       return () => clearInterval(interval);
     }
   }, [shipment]);
+
+  useEffect(() => {
+    if (!shipment) return;
+
+    const needsAutoRefresh =
+      shipment.customsCharge !== undefined ||
+      shipment.currentStatus === ShipmentStatus.CUSTOMS_HOLD ||
+      shipment.paymentStatus === PaymentStatus.PENDING;
+
+    if (!needsAutoRefresh) return;
+
+    const interval = setInterval(() => {
+      performLookup(shipment.trackingNumber);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [shipment?.id, shipment?.customsCharge, shipment?.currentStatus, shipment?.paymentStatus]);
 
   const performLookup = async (trackingNo: string) => {
     setLoading(true);
@@ -120,6 +137,11 @@ export const Track: React.FC = () => {
         setTimeout(() => setCopied(null), 2000);
       }
     } catch {}
+  };
+
+  const handleRefresh = async () => {
+    if (!shipment) return;
+    await performLookup(shipment.trackingNumber);
   };
 
   const currentStep = shipment ? getProgressStep(shipment.currentStatus) : 0;
@@ -291,6 +313,9 @@ export const Track: React.FC = () => {
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.885 12.938 9 12.482 9 12c0-.482-.115-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                           </svg>
+                        </button>
+                        <button onClick={handleRefresh} disabled={loading} className="px-4 py-2 rounded-full bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                          Refresh
                         </button>
                       </div>
                     </div>

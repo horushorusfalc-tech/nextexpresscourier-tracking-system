@@ -102,8 +102,9 @@ const AdminContent: React.FC<{ role: UserRole }> = ({ role }) => {
     if (!state.selectedShipment) return;
     dispatch({ type: 'SET_IS_SUBMITTING', payload: true });
     try {
-      // If customs charge is provided and status is CUSTOMS_HOLD, update shipment with payment info
-      if (form.customsCharge && form.status === ShipmentStatus.CUSTOMS_HOLD) {
+      // If customs charge is provided and the shipment is in customs hold, update shipment with payment info
+      const shouldUpdateCustomsCharge = form.customsCharge !== undefined && form.status === ShipmentStatus.CUSTOMS_HOLD;
+      if (shouldUpdateCustomsCharge) {
         const { error } = await supabase
           .from('shipments')
           .update({

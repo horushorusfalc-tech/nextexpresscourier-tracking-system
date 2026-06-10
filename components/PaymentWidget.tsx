@@ -45,6 +45,13 @@ export const PaymentWidget: React.FC<PaymentWidgetProps> = ({ shipment, onPaymen
 
   const effectiveWalletAddress = walletAddress || secondaryWalletAddress;
 
+  useEffect(() => {
+    setClaimedPayment(false);
+    setTxHash('');
+    setVerificationResult(null);
+    setShowTxInput(false);
+  }, [shipment.id, shipment.customsCharge, shipment.paymentStatus]);
+
   // Try to infer customs charge from recent tracking events when admin omitted it
   const parseChargeFromEvents = (events: TrackingEvent[] | undefined): number | null => {
     if (!events || events.length === 0) return null;
